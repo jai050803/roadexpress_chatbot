@@ -25,6 +25,10 @@ COLUMN_CATEGORY = "category"
 COLUMN_QUESTION = "question"
 COLUMN_ALTERNATE_QUESTIONS = "alternate_questions"
 COLUMN_ANSWER = "answer"
+COLUMN_ANSWER_EN = "answer_en"
+COLUMN_ANSWER_HI = "answer_hi"
+COLUMN_ANSWER_HINGLISH = "answer_hinglish"
+COLUMN_TAGS = "tags"
 COLUMN_DEPARTMENT = "department"
 COLUMN_STATUS = "status"
 COLUMN_REQUIRES_LIVE_DATA = "requires_live_data"
@@ -50,9 +54,13 @@ class FAQRecord(TypedDict):
     question: str
     alternate_questions: list[str]
     answer: str
+    answer_en: str
+    answer_hi: str
+    answer_hinglish: str
     department: str
     status: str
     requires_live_data: bool
+    tags: str
 
 
 class KnowledgeBase:
@@ -83,6 +91,12 @@ class KnowledgeBase:
             raise FileNotFoundError(f"FAQ CSV file not found: {self.csv_path}")
 
         df = pd.read_csv(self.csv_path)
+
+        if COLUMN_FAQ_ID not in df.columns and "id" in df.columns:
+            df[COLUMN_FAQ_ID] = df["id"]
+        if COLUMN_ANSWER not in df.columns and COLUMN_ANSWER_EN in df.columns:
+            df[COLUMN_ANSWER] = df[COLUMN_ANSWER_EN]
+
         missing_columns = REQUIRED_COLUMNS - set(df.columns)
         if missing_columns:
             raise ValueError(f"Missing required columns: {sorted(missing_columns)}")
@@ -109,15 +123,41 @@ class KnowledgeBase:
                 else str(req_live_raw).strip().lower() in TRUE_STRINGS
             )
 
+            ans_raw = str(row[COLUMN_ANSWER]).strip()
+            ans_en = (
+                str(row[COLUMN_ANSWER_EN]).strip()
+                if COLUMN_ANSWER_EN in row and pd.notna(row[COLUMN_ANSWER_EN])
+                else ans_raw
+            )
+            ans_hi = (
+                str(row[COLUMN_ANSWER_HI]).strip()
+                if COLUMN_ANSWER_HI in row and pd.notna(row[COLUMN_ANSWER_HI])
+                else ""
+            )
+            ans_hinglish = (
+                str(row[COLUMN_ANSWER_HINGLISH]).strip()
+                if COLUMN_ANSWER_HINGLISH in row and pd.notna(row[COLUMN_ANSWER_HINGLISH])
+                else ""
+            )
+            tags = (
+                str(row[COLUMN_TAGS]).strip()
+                if COLUMN_TAGS in row and pd.notna(row[COLUMN_TAGS])
+                else ""
+            )
+
             record: FAQRecord = {
                 "faq_id": str(row[COLUMN_FAQ_ID]).strip(),
                 "category": str(row[COLUMN_CATEGORY]).strip() if pd.notna(row[COLUMN_CATEGORY]) else "",
                 "question": str(row[COLUMN_QUESTION]).strip() if pd.notna(row[COLUMN_QUESTION]) else "",
                 "alternate_questions": alternate_questions,
-                "answer": str(row[COLUMN_ANSWER]).strip(),
+                "answer": ans_raw,
+                "answer_en": ans_en,
+                "answer_hi": ans_hi,
+                "answer_hinglish": ans_hinglish,
                 "department": str(row[COLUMN_DEPARTMENT]).strip() if pd.notna(row[COLUMN_DEPARTMENT]) else "",
                 "status": status,
                 "requires_live_data": requires_live,
+                "tags": tags,
             }
             loaded_records.append(record)
 

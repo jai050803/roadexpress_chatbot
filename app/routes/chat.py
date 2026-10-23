@@ -10,6 +10,7 @@ from app.services.intent_router import (
     is_greeting,
 )
 from app.services.knowledge_base import KnowledgeBase
+from app.services.language_detector import detect_language
 from app.services.llm import humanize_answer
 from app.services.response_builder import build_response
 from app.services.retriever import Retriever
@@ -73,6 +74,8 @@ def chat(
         else None
     )
 
+    language = detect_language(request.message)
+
     if is_greeting(request.message):
         if session is not None and request.session_id is not None:
             session_manager.update(
@@ -81,12 +84,13 @@ def chat(
                 status=ResponseStatus.ANSWERED,
                 awaiting_department=False,
             )
-        return build_greeting_response(request.session_id)
+        return build_greeting_response(request.session_id, language=language)
 
     dept_response = handle_department_followup(
         request.message,
         session,
         knowledge_base,
+        language=language,
     )
     if dept_response is not None:
         if session is not None and request.session_id is not None:
@@ -100,7 +104,7 @@ def chat(
         return dept_response
 
     results = retriever.search(request.message, top_k=SEARCH_TOP_K)
-    response = build_response(results, request.session_id)
+    response = build_response(results, request.session_id, language=language)
 
     if response.status == ResponseStatus.ANSWERED:
         humanized = humanize_answer(request.message, response.answer)

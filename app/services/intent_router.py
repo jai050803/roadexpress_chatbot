@@ -2,7 +2,8 @@ import re
 
 from app.models.chat import ChatResponse, Department, ResponseStatus
 from app.services.knowledge_base import KnowledgeBase
-from app.services.response_builder import resolve_department
+from app.services.language_detector import LANG_EN, LANG_HI, LANG_HINGLISH
+from app.services.response_builder import resolve_department, select_answer
 from app.services.session_manager import SessionState
 
 GREETING_TOKENS: frozenset[str] = frozenset({
@@ -19,6 +20,11 @@ GREETING_TOKENS: frozenset[str] = frozenset({
     "help",
     "start",
     "namaskar",
+    "नमस्ते",
+    "प्रणाम",
+    "नमस्कार",
+    "राम राम",
+    "राधे राधे",
 })
 
 DEPARTMENT_TERMS: dict[Department, tuple[str, ...]] = {
@@ -54,11 +60,25 @@ INTENT_DEPARTMENT_ROUTING = "DEPARTMENT_ROUTING"
 GREETING_CONFIDENCE = 1.0
 MAX_FOLLOWUP_WORDS = 4
 
-GREETING_RESPONSE_MESSAGE = (
-    "Hello! Welcome to Road Express support. I can assist you with live tracking, "
-    "POD submissions, freight advance and balance payouts, detention claims, and carrier onboarding. "
-    "How can I help you today?"
-)
+GREETING_RESPONSE_MESSAGES: dict[str, str] = {
+    LANG_EN: (
+        "Hello! Welcome to Road Express support. I can assist you with live tracking, "
+        "POD submissions, freight advance and balance payouts, detention claims, and carrier onboarding. "
+        "How can I help you today?"
+    ),
+    LANG_HI: (
+        "नमस्ते! रोडएक्सप्रेस सहायता में आपका स्वागत है। मैं लाइव ट्रैकिंग, "
+        "POD जमा करने, एडवांस और बैलेंस पेमेंट, डिटेंशन और गाड़ी जोड़ने में आपकी मदद कर सकता हूँ। "
+        "आज मैं आपकी क्या सहायता करूँ?"
+    ),
+    LANG_HINGLISH: (
+        "Namaste! RoadExpress support me aapka swagat hai. Main live tracking, "
+        "POD submissions, advance aur balance payment, detention claims aur gaadi jodne me madad kar sakta hoon. "
+        "Batayein aaj kya madad chahiye?"
+    ),
+}
+
+GREETING_RESPONSE_MESSAGE = GREETING_RESPONSE_MESSAGES[LANG_EN]
 
 FINANCE_DESK_MESSAGE = (
     "You are connected with the Finance desk. For freight advance, balance settlement, "
@@ -88,9 +108,13 @@ def is_greeting(message: str) -> bool:
     return cleaned in GREETING_TOKENS
 
 
-def build_greeting_response(session_id: str | None) -> ChatResponse:
+def build_greeting_response(
+    session_id: str | None,
+    language: str = LANG_EN,
+) -> ChatResponse:
+    greeting_text = GREETING_RESPONSE_MESSAGES.get(language, GREETING_RESPONSE_MESSAGE)
     return ChatResponse(
-        answer=GREETING_RESPONSE_MESSAGE,
+        answer=greeting_text,
         status=ResponseStatus.ANSWERED,
         intent=INTENT_GREETING,
         department=None,
@@ -123,6 +147,7 @@ def handle_department_followup(
     message: str,
     session: SessionState | None,
     knowledge_base: KnowledgeBase,
+    language: str = LANG_EN,
 ) -> ChatResponse | None:
     dept = extract_department(message)
     if dept == Department.UNKNOWN:
@@ -142,7 +167,7 @@ def handle_department_followup(
             record = knowledge_base.get_by_id(faq_id)
             if record is not None and resolve_department(record["department"]) == dept:
                 return ChatResponse(
-                    answer=record["answer"],
+                    answer=select_answer(record, language),
                     status=ResponseStatus.ANSWERED,
                     intent=record["category"],
                     department=dept,
