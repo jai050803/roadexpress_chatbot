@@ -18,30 +18,13 @@ QUESTION_KEY = "question"
 DEPARTMENT_KEY = "department"
 RECEIVED_KEY = "received"
 
-_knowledge_base: KnowledgeBase | None = None
-_retriever: Retriever | None = None
-
-
-def set_dependencies(knowledge_base: KnowledgeBase, retriever: Retriever) -> None:
-    global _knowledge_base, _retriever
-    _knowledge_base = knowledge_base
-    _retriever = retriever
-
 
 def get_knowledge_base(request: Request) -> KnowledgeBase:
-    if hasattr(request.app.state, "knowledge_base"):
-        return request.app.state.knowledge_base
-    if _knowledge_base is not None:
-        return _knowledge_base
-    raise RuntimeError("KnowledgeBase is not initialized")
+    return request.app.state.knowledge_base
 
 
 def get_retriever(request: Request) -> Retriever:
-    if hasattr(request.app.state, "retriever"):
-        return request.app.state.retriever
-    if _retriever is not None:
-        return _retriever
-    raise RuntimeError("Retriever is not initialized")
+    return request.app.state.retriever
 
 
 class FAQSummary(TypedDict):
