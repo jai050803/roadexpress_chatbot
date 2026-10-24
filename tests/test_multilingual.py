@@ -110,7 +110,7 @@ def test_build_response_no_match_localized() -> None:
 
 def test_knowledge_base_loads_all_records() -> None:
     kb = KnowledgeBase("data/faq.csv")
-    assert len(kb.records) == 320
+    assert len(kb.records) == 400
     record_ids = {r["faq_id"] for r in kb.records}
     assert "RE-001" in record_ids
     assert "RE-040" in record_ids
@@ -122,6 +122,8 @@ def test_knowledge_base_loads_all_records() -> None:
     assert "RE-240" in record_ids
     assert "RE-241" in record_ids
     assert "RE-320" in record_ids
+    assert "RE-321" in record_ids
+    assert "RE-400" in record_ids
     re_001 = kb.get_by_id("RE-001")
     assert re_001 is not None
     assert re_001["answer_hi"] != ""
@@ -142,3 +144,7 @@ def test_knowledge_base_loads_all_records() -> None:
     assert re_320 is not None
     assert re_320["answer_hi"] != ""
     assert re_320["answer_hinglish"] != ""
+    re_400 = kb.get_by_id("RE-400")
+    assert re_400 is not None
+    assert re_400["answer_hi"] != ""
+    assert re_400["answer_hinglish"] != ""
